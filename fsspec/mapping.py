@@ -192,8 +192,8 @@ class FSMap(MutableMapping):
         """Remove key"""
         try:
             self.fs.rm(self._key_to_str(key))
-        except Exception as exc:
-            raise KeyError from exc
+        except self.missing_exceptions as exc:
+            raise KeyError(key) from exc
 
     def __contains__(self, key):
         """Does key exist in mapping?"""
@@ -243,7 +243,7 @@ def get_mapper(
         instantiating
     missing_exceptions: None or tuple
         If given, these exception types will be regarded as missing keys and
-        return KeyError when trying to read data. By default, you get
+        raise KeyError when trying to read or delete data. By default, you get
         (FileNotFoundError, IsADirectoryError, NotADirectoryError)
     alternate_root: None or str
         In cases of complex URLs, the parser may fail to pick the correct part

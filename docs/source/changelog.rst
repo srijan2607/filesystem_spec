@@ -12,6 +12,9 @@ Enhancements
 
 Fixes
 
+- Preserve backend deletion errors in ``FSMap`` instead of treating every failure
+  as a missing key and allowing ``pop`` to report success without deleting data.
+
 - Reject unsupported HTTP ``pipe_file`` modes defensively before writing,
   since PUT behavior depends on the server (#2294).
 
