@@ -192,8 +192,8 @@ class FSMap(MutableMapping):
         """Remove key"""
         try:
             self.fs.rm(self._key_to_str(key))
-        except Exception as exc:
-            raise KeyError from exc
+        except self.missing_exceptions as exc:
+            raise KeyError(key) from exc
 
     def __contains__(self, key):
         """Does key exist in mapping?"""
