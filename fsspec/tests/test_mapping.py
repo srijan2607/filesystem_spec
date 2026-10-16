@@ -3,6 +3,9 @@ import pickle
 import platform
 import sys
 import uuid
+from contextlib import closing
+from operator import delitem
+from zipfile import ZipFile
 
 import pytest
 
@@ -239,6 +242,35 @@ def test_fsmap_dirfs():
     fs = m.dirfs
     assert isinstance(fs, fsspec.implementations.dirfs.DirFileSystem)
     assert fs.path == m.root
+
+
+@pytest.mark.parametrize("operation", [delitem, lambda m, k: m.pop(k, None)])
+def test_delete_readonly_zip(tmp_path, operation):
+    path = tmp_path / "data.zip"
+    with ZipFile(path, "w") as archive:
+        archive.writestr("key", b"value")
+    with closing(fsspec.filesystem("zip", fo=path)) as fs:
+        mapper = fs.get_mapper()
+        with pytest.raises(NotImplementedError):
+            operation(mapper, "key")
+        assert mapper["key"] == b"value"
+
+
+@pytest.mark.parametrize("missing", [(), (FileNotFoundError,), (ValueError,)])
+@pytest.mark.parametrize("error_type", [FileNotFoundError, PermissionError, ValueError])
+def test_delete_missing_exceptions(monkeypatch, missing, error_type):
+    mapper = fsspec.get_mapper("memory://", missing_exceptions=missing)
+    error = error_type("delete failed")
+
+    def fail_rm(path):
+        raise error
+
+    monkeypatch.setattr(mapper.fs, "rm", fail_rm)
+    expected = KeyError if error_type in missing else error_type
+    with pytest.raises(expected) as caught:
+        del mapper["key"]
+    assert caught.value.args == (("key",) if expected is KeyError else error.args)
+    assert (caught.value.__cause__ if expected is KeyError else caught.value) is error
 
 
 @pytest.mark.parametrize("protocol", ["memory", "file"])
